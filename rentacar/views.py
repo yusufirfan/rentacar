@@ -18,8 +18,6 @@ class CarListCreateView(ListCreateAPIView):
         }
         return Response(data, status=status.HTTP_401_UNAUTHORIZED)
 
-
-
 class CarListView(ListAPIView):
     queryset = Car.objects.all()
     serializer_class = CarSerializers
