@@ -1,32 +1,51 @@
-from typing import Iterable, Optional
 from django.db import models
 from django.contrib.auth.models import User
+from datetime import date
+from django.core.exceptions import ValidationError
+from django.core.validators import MinValueValidator
 
-class Reservation(models.Model):
-    user_id = models.OneToOneField(User, on_delete=models.CASCADE,null=True,blank=True)
-    start_date = models.DateField(auto_now_add=True)
-    end_date = models.DateField()
-
-    def __str__(self):
-        return f'{self.user_id} / {self.start_date} - {self.end_date}'
+class FixModel(models.Model): #i will use this fields for every model
+    user = models.ForeignKey(User, on_delete=models.CASCADE)
+    create_date = models.DateTimeField(auto_now_add=True)
+    update_date = models.DateTimeField(auto_now=True)
 
 
-class Car(models.Model):
-    plate_number = models.CharField(max_length=256)
-    brand = models.CharField(max_length=256)
-    model = models.CharField(max_length=256)
-    year = models.SmallIntegerField()
-    gear = models.CharField(max_length=256,null=True,blank=True)
-    reservation = models.OneToOneField(Reservation,on_delete=models.SET_NULL,null=True,blank=True)
+class Car(FixModel):
+    plate_number = models.CharField(max_length=24,unique=True)
+    brand = models.CharField(max_length=24)
+    model = models.CharField(max_length=24)
+    year = models.PositiveIntegerField()
+
+    GEAR_CHOICES=[
+        (0,'Manual'),
+        (1,'Auto'),
+    ]
+
+    gear = models.BooleanField(choices=GEAR_CHOICES)
+
+    rent_per_day = models.DecimalField(max_digits=5, decimal_places=2, validators=[MinValueValidator(1)])
     availability = models.BooleanField(default=True)
 
     def __str__(self):
         return f'{self.plate_number} - {self.brand}'
     
+    # def save(self, *args, **kwargs):
+    #     if self.reservation is not None:
+    #         self.availability = False
+    #     else:
+    #         self.availability = True
+    #     super(Car, self).save(*args, **kwargs)
+
+class Reservation(FixModel):
+    car = models.ForeignKey(Car, on_delete=models.CASCADE)
+    start_date = models.DateField()
+    end_date = models.DateField()
+
+    def __str__(self):
+        return f'{self.user_id} / {self.start_date} - {self.end_date}'
+
     def save(self, *args, **kwargs):
-        if self.reservation is not None:
-            self.availability = False
+        if self.end_date<date.today():
+            raise ValidationError("You can't select a date in the past.")
         else:
-            self.availability = True
-        super(Car, self).save(*args, **kwargs)
-    
+            super().save(*args, **kwargs)
